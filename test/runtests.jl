@@ -1,6 +1,7 @@
-using PictureSegmentation
+using PictureSegmentation, Images, TestImages
 using Test
 
 @testset "PictureSegmentation.jl" begin
-    # Write your own tests here.
+    include("growcut.jl")
+    include("seedpixel.jl")
 end
