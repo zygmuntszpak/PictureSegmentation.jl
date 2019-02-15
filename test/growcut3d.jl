@@ -1,6 +1,6 @@
 @testset "growcut3d" begin
     img = generate_3d_img()
-    display_3d(img)
+    display_3D(img)
     @test true
     clicks=zeros(Int,axes(img))
     clicks[50,50,10] = 1

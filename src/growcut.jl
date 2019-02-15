@@ -4,7 +4,7 @@ l = segment_image(Algorithm::GrowCut, feature_vector::AbstractArray, seeds::Abst
 ```
 
 Using a provided `feature_vector` (default rule uses RGB image) and an array of
-seeds, `GrowCut` will use Cellular Automata to segment a image into different
+seeds, `GrowCut` will use Cellular Automata to segment an image into different
 regions. The algorithm takes two thresholds which can be used to control the
 smoothness of the segmentation.
 
@@ -14,7 +14,7 @@ Returns a Array of Integers `l` that specifies the label assigned to each pixel.
 
 # Details
 
-The algorithm uses Cellular Automata to iteratively  apply a rule to each pixel
+The algorithm uses Cellular Automata to iteratively apply a rule to each pixel
 which then competes with its neighbours to label the pixel. By default the
 algorithm takes an RGB image for the `feature_vector` however a custom rule can
 be defined for other `feature_vector` types. To improve performance after the
@@ -39,7 +39,7 @@ be generated using `set_seed_pixels`
 
 ## `t1` and `t2`
 
-`Int`s that specifies the thresholds to be used for smoothing. `t1` is the maximum
+`Int`s that specifiy the thresholds to be used for smoothing. `t1` is the maximum
 number of "enemies" that a pixel can be surrounded by and still attack other
 pixels. `t2` is the maximum number of "enemies" before the pixel is forced to
 become the weakest enemy pixel. Note: these values can produce scenarios where
@@ -174,61 +174,61 @@ l=segment_image(GrowCut(), img, clicks, rule=(example_LAB_rule,calculate_maxLab)
 # Reference
 1. V. Vezhnevets and V. Konouchine, "“GrowCut” - Interactive Multi-Label N-D Image Segmentation By Cellular Automata", in Graphicon, Novosibirsk Akademgorodok, Russia, 2005.
 """
-function segment_image(Algorithm::GrowCut, feature_vector::AbstractArray, seeds::AbstractArray{Int, 2}, t1::Int=9, t2::Int=9; max_iter::Int=1000, converge_at::Int=1, rule::Tuple{Function, Function}=(colour_diff, find_maxRGB))
-    #initialize values
+function segment_image(Algorithm::GrowCut, feature_vector::AbstractArray, seeds::AbstractArray{Int, 2}, t1::Int=9, t2::Int=9; max_iter::Int=1000, converge_at::Int=1, rule::Tuple{Function, Function}=(colour_differance, find_maximum))
+    # initialize values
     calculate_adjusted_strength = rule[1]
     extra_function = rule[2]
     extras = extra_function(feature_vector)
-    l = copy(seeds)
-    E = zeros(Int, axes(l))
-    θ = set_strength(l)
-    lₜ₊₁ = copy(seeds)
-    Eₜ₊₁ = zeros(Int, axes(l))
-    θₜ₊₁ = set_strength(l)
+    labels = copy(seeds)
+    E = zeros(Int, axes(labels))
+    θ = set_strength(labels)
+    labelsₜ₊₁ = copy(seeds)
+    Eₜ₊₁ = zeros(Int, axes(labels))
+    θₜ₊₁ = set_strength(labels)
     regions = maximum(seeds)
     iter = 0
-    count = length(l)
+    count = length(labels)
     changed = Array{Tuple{UnitRange{Int},UnitRange{Int}},1}(undef,1)
     changedₜ₊₁ = Array{Tuple{UnitRange{Int},UnitRange{Int}},1}(undef,0)
-    rₘ, cₘ = size(l)
+    rₘ, cₘ = size(labels)
     changed[1] = 1:rₘ, 1:cₘ
 
-    #overflow warning
+    # overflow warning
     if typeof(feature_vector) == Array{RGB,2} && typeof(feature_vector) != Array{RGB{Float64},2}
         @warn "feature_vector is RGB and not of type RGB{Float64}. This may cause overflow errors."
     end
 
-    #iterate till convergence or maximum iterations reached
+    # iterate till convergence or maximum iterations reached
     while count > converge_at && iter < max_iter
         iter += 1
         count = 0
         copyto!(θₜ₊₁, θ)
-        copyto!(lₜ₊₁, l)
+        copyto!(labelsₜ₊₁, labels)
         copyto!(Eₜ₊₁, E)
-        #loop through active pixel neighbourhoods (all pixels on first iteration)
+        # loop through active pixel neighbourhoods (all pixels on first iteration)
         for j in CartesianIndices(changed)
             @inbounds for i in CartesianIndices(changed[j])
-                r,c=i.I
+                r, c=i.I
                 r₀ = max(r-1, 1)
                 r₁ = min(r+1, rₘ)
                 c₀ = max(c-1, 1)
                 c₁ = min(c+1, cₘ)
-                Nbound = r₀:r₁, c₀:c₁
-                Eₜ₊₁[i] = count_enemy(l,i,Nbound)
+                N₈ = r₀:r₁, c₀:c₁
+                Eₜ₊₁[i] = count_enemy(labels,i,N₈)
                 if E[i] < t2
-                    θₜ₊₁, lₜ₊₁, count, changedₜ₊₁ = update_pixel(θ, θₜ₊₁, l, lₜ₊₁, feature_vector, E, i, extras, t1, count, Nbound, changedₜ₊₁, calculate_adjusted_strength)
+                    θₜ₊₁, labelsₜ₊₁, count, changedₜ₊₁ = update_pixel(θ, θₜ₊₁, labels, labelsₜ₊₁, feature_vector, E, i, extras, t1, count, N₈, changedₜ₊₁, calculate_adjusted_strength)
                 else
-                    θₜ₊₁, lₜ₊₁, count, changedₜ₊₁ = occupy_pixel(θ, θₜ₊₁, l, lₜ₊₁, feature_vector, i, extras,count, Nbound, changedₜ₊₁, calculate_adjusted_strength)
+                    θₜ₊₁, labelsₜ₊₁, count, changedₜ₊₁ = occupy_pixel(θ, θₜ₊₁, labels, labelsₜ₊₁, feature_vector, i, extras,count, N₈, changedₜ₊₁, calculate_adjusted_strength)
                 end
             end
         end
 
-        #update values
+        # update values
         changed = changedₜ₊₁
         changedₜ₊₁ = empty(changedₜ₊₁)
         E = Eₜ₊₁
         θ = θₜ₊₁
-        l = lₜ₊₁
+        labels = labelsₜ₊₁
     end
-    return l
+    return labels
 end

@@ -18,7 +18,7 @@ export
 	segment_image,
 	set_seed_pixels!,
 	GrowCut,
-	display_3d,
+	display_3D,
 	help_rule_template,
 	create_rule,
 	convert_labels,
